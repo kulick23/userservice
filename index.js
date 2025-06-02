@@ -1,30 +1,35 @@
-const express = require('express');
-const crypto = require('crypto');
+const express = require("express");
+const crypto = require("crypto");
 const app = express();
 app.use(express.json());
 
-const secret = 'your-secret-key';
+const secret = "your-secret-key";
 function encrypt(text) {
-  const cipher = crypto.createCipher('aes-256-ctr', secret);
-  return cipher.update(text, 'utf8', 'hex') + cipher.final('hex');
+  const cipher = crypto.createCipher("aes-256-ctr", secret);
+  return cipher.update(text, "utf8", "hex") + cipher.final("hex");
 }
 
 let users = [];
 
-app.post('/users', (req, res) => {
+app.post("/users", (req, res) => {
   const user = {
     id: Date.now().toString(),
     name: encrypt(req.body.name),
-    email: encrypt(req.body.email)
+    email: encrypt(req.body.email),
   };
   users.push(user);
   res.status(201).json(user);
 });
 
-app.get('/users', (_, res) => res.json(users));
-app.get('/ping', (_, res) => res.send('pong'));
-app.get('/health', (_, res) => res.json({ status: 'ok' }));
-app.get('/metrics', (_, res) => res.json({ users: users.length }));
+app.get("/users/:id", (req, res) => {
+  const user = users.find((u) => u.id === req.params.id);
+  if (!user) return res.status(404).json({ error: "User not found" });
+  res.json(user);
+});
 
-const PORT = process.env.PORT || 3002;
+app.get("/ping", (_, res) => res.send("pong"));
+app.get("/health", (_, res) => res.json({ status: "ok" }));
+app.get("/metrics", (_, res) => res.json({ users: users.length }));
+
+const PORT = process.env.PORT || 3001;
 app.listen(PORT, () => console.log(`User service running on ${PORT}`));
