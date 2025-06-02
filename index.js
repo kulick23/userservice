@@ -22,10 +22,9 @@ app.post('/users', (req, res) => {
 });
 
 app.get('/users', (req, res) => res.json(users));
-
 app.get('/ping', (_, res) => res.send('pong'));
 app.get('/health', (_, res) => res.json({ status: 'ok' }));
 app.get('/metrics', (_, res) => res.json({ users: users.length }));
 
-const server = app.listen(3001, () => console.log('User service running on 3001'));
-module.exports = app;
+const PORT = process.env.PORT || 3001;
+app.listen(PORT, () => console.log('User service running on', PORT));
