@@ -1,3 +1,19 @@
+require('dotenv').config();
+const { MongoClient } = require('mongodb');
+
+const mongoUrl = process.env.MONGO_URL;
+let db;
+
+MongoClient.connect(mongoUrl, { useUnifiedTopology: true })
+  .then(client => {
+    db = client.db(); // или client.db('название_базы_данных')
+    console.log("Connected to MongoDB");
+  })
+  .catch(err => {
+    console.error("Failed to connect to MongoDB", err);
+    process.exit(1);
+  });
+
 const express = require('express');
 const crypto = require('crypto');
 
@@ -11,31 +27,35 @@ function encrypt(text) {
   return cipher.update(text, 'utf8', 'hex') + cipher.final('hex');
 }
 
-let users = [];
-
-app.post('/users', (req, res) => {
+app.post('/users', async (req, res) => {
   const { id, name, email } = req.body;
   if (!name || !email) {
     return res.status(400).json({ error: 'Missing name or email' });
   }
 
   const user = {
-    id: id || Date.now().toString(), // 👉 используем переданный id, если есть
+    id: id || Date.now().toString(),
     name: encrypt(name),
     email: encrypt(email)
   };
 
-  users.push(user);
+  // сохраняем в MongoDB
+  await db.collection('users').insertOne(user);
   res.status(201).json(user);
 });
 
-app.get('/users/:id', (req, res) => {
-  const user = users.find(u => u.id === req.params.id);
+app.get('/users/:id', async (req, res) => {
+  // ищем в MongoDB
+  const user = await db.collection('users').findOne({ id: req.params.id });
   if (!user) return res.status(404).json({ error: 'User not found' });
   res.json(user);
 });
 
-app.get('/users', (_, res) => res.json(users));
+app.get('/users', async (_, res) => {
+  // возвращаем всех из MongoDB
+  const users = await db.collection('users').find().toArray();
+  res.json(users);
+});
 
 app.get('/ping', (_, res) => res.send('pong'));
 app.get('/health', (_, res) => res.json({ status: 'ok' }));
