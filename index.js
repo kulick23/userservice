@@ -1,5 +1,6 @@
 require('dotenv').config();
 const { MongoClient } = require('mongodb');
+const client = require('prom-client');
 
 const mongoUrl = process.env.MONGO_URL;
 let db;
@@ -59,9 +60,19 @@ app.get('/users', async (_, res) => {
 
 app.get('/ping', (_, res) => res.send('pong'));
 app.get('/health', (_, res) => res.json({ status: 'ok' }));
+
+client.collectDefaultMetrics();           // сбор дефолтных метрик
+const usersGauge = new client.Gauge({     // метрика число пользователей
+  name: 'users_count',
+  help: 'Number of users in MongoDB'
+});
+
 app.get("/metrics", async (_, res) => {
   const count = await db.collection('users').countDocuments();
-  res.json({ users: count });
+  usersGauge.set(count);
+  res.set('Content-Type', client.register.contentType);
+  res.send(await client.register.metrics());
 });
+
 const PORT = process.env.PORT || 3001;
 app.listen(PORT, () => console.log(`User service running on ${PORT}`));
